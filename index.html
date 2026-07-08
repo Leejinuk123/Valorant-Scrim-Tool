@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>발로란트 내전 진행 도구</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">VALORANT SCRIM TOOL</p>
+        <h1>발로란트 내전 진행 도구</h1>
+        <p class="sub">라인 입력, 드래프트 모드 선택, 맵 랜덤 애니메이션, 미니게임까지 한 번에 진행합니다.</p>
+      </div>
+      <div class="hero-right">
+        <div class="theme-buttons">
+          <button class="theme-btn active" data-theme="valorant">레드</button>
+          <button class="theme-btn" data-theme="ocean">블루</button>
+          <button class="theme-btn" data-theme="neon">네온</button>
+        </div>
+        <button id="resetAllBtn" class="btn danger">전체 초기화</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card balance-card">
+        <div class="card-title">
+          <h2>1. 밸런스 라인 입력</h2>
+          <span id="playerCountBadge" class="badge">0 / 10</span>
+        </div>
+        <div id="lines" class="lines"></div>
+        <p class="hint">표시는 왼쪽 기준입니다. <b>&gt;</b> 왼쪽 윗밸, <b>&lt;</b> 오른쪽 윗밸, <b>=</b> 동등.</p>
+      </section>
+
+      <section class="card draft-card">
+        <div class="card-title">
+          <h2>2. 팀원 드래프트</h2>
+          <div class="actions">
+            <button id="startDraftBtn" class="btn primary">드래프트 시작</button>
+            <button id="resetDraftBtn" class="btn ghost">초기화</button>
+          </div>
+        </div>
+
+        <div class="mode-box">
+          <label class="mode-option">
+            <input type="radio" name="draftMode" value="PAIR" checked />
+            <span>
+              <strong>페어 드래프트</strong>
+              <small>한 명 선택 시 반대편이 상대팀으로 자동 이동</small>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="draftMode" value="FREE" />
+            <span>
+              <strong>자유 드래프트</strong>
+              <small>선택한 사람만 현재 팀으로 이동</small>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="draftMode" value="RANDOM" />
+            <span>
+              <strong>랜덤 팀 배정</strong>
+              <small>라인당 한 명씩 A/B에 랜덤 배정</small>
+            </span>
+          </label>
+        </div>
+
+        <div id="draftStatus" class="status-box">드래프트를 시작하세요.</div>
+        <div id="draftBoard" class="draft-board"></div>
+        <div id="draftArea" class="draft-area"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <h2>3. 맵 선택</h2>
+          <button id="resetMapsBtn" class="btn ghost">맵풀 초기화</button>
+        </div>
+        <div id="mapPool" class="map-pool"></div>
+        <div class="divider"></div>
+        <label class="label">선택 방식</label>
+        <div class="radio-row">
+          <label><input type="radio" name="mapMode" value="MANUAL" checked /> 직접 선택</label>
+          <label><input type="radio" name="mapMode" value="RANDOM" /> 체크된 맵 중 랜덤</label>
+        </div>
+        <select id="manualMapSelect"></select>
+
+        <div id="mapRouletteBox" class="map-roulette-box hidden">
+          <div class="map-roulette-label">MAP SELECTING</div>
+          <div id="mapRouletteName" class="map-roulette-name">-</div>
+        </div>
+
+        <button id="pickRandomMapBtn" class="btn primary full">랜덤 맵 뽑기</button>
+        <div id="selectedMapBox" class="result-box">선택 맵: 없음</div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <h2>4. 미니게임</h2>
+          <span class="badge">선픽/후픽 · 공수 결정용</span>
+        </div>
+        <div class="mini-tabs">
+          <button class="tab active" data-game="roulette">룰렛</button>
+          <button class="tab" data-game="coin">동전 던지기</button>
+        </div>
+
+        <div id="rouletteGame" class="mini-game">
+          <div class="roulette-wrap">
+            <div class="fixed-pointer">▼</div>
+            <div id="rouletteWheel" class="roulette-wheel">
+              <div class="wheel-half top">A</div>
+              <div class="wheel-half bottom">B</div>
+            </div>
+          </div>
+          <button id="spinRouletteBtn" class="btn primary">룰렛 돌리기</button>
+          <div id="rouletteResult" class="game-result">결과: -</div>
+        </div>
+
+        <div id="coinGame" class="mini-game hidden">
+          <div class="coin-scene">
+            <div id="coin" class="coin">
+              <div class="coin-face coin-front">A</div>
+              <div class="coin-face coin-back">B</div>
+            </div>
+          </div>
+          <button id="flipCoinBtn" class="btn primary">동전 던지기</button>
+          <div id="coinResult" class="game-result">결과: -</div>
+        </div>
+      </section>
+
+      <section class="card wide">
+        <div class="card-title">
+          <h2>5. 최종 결과</h2>
+          <button id="copyResultBtn" class="btn primary">디스코드용 복사</button>
+        </div>
+        <div id="versusTitle" class="versus-title">Team A VS Team B</div>
+        <pre id="resultText" class="result-text"></pre>
+      </section>
+    </main>
+
+    <footer class="footer-credit">made for 인간쓰레기</footer>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
