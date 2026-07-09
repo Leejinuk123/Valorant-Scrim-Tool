@@ -1,5 +1,5 @@
 const STORAGE_KEY="valorant-scrim-tool-v13";
-const defaultMaps=["어센트","바인드","헤이븐","스플릿","로터스","선셋","어비스","펄","프랙처","브리즈","아이스박스","코로드"];
+const defaultMaps=["어센트","바인드","헤이븐","스플릿","로터스","선셋","어비스","펄","프랙처","브리즈","아이스박스","코로드","서밋"];
 
 const initialState={
   lines:Array.from({length:5},(_,i)=>({
