@@ -436,3 +436,325 @@ input:focus,select:focus{border-color:var(--accent)}
     width: 100% !important;
   }
 }
+
+
+/* v14: 팀장 라인 및 맵 이미지 카드 */
+.balance-card .line-card {
+  grid-template-columns: 30px 44px 1fr 42px 1fr !important;
+}
+
+.captain-line-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line);
+  background: #11141c;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px !important;
+}
+
+.captain-line-btn.active {
+  background: var(--accent);
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-soft);
+}
+
+.captain-line-selected {
+  border-color: var(--accent) !important;
+  background: linear-gradient(90deg, var(--accent-soft), #11141c) !important;
+}
+
+.captain-draft-line {
+  border-color: var(--accent) !important;
+}
+
+.map-pool {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.map-card {
+  position: relative;
+  overflow: hidden;
+  height: 92px;
+  padding: 0 !important;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  background: #11141c;
+  color: var(--text);
+  text-align: left;
+}
+
+.map-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .2s ease, filter .2s ease;
+}
+
+.map-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 20%, rgba(0,0,0,.82));
+}
+
+.map-card-name {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  font-size: 14px;
+  font-weight: 900;
+  text-shadow: 0 2px 5px rgba(0,0,0,.9);
+}
+
+.map-card-state {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 2;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(0,0,0,.62);
+}
+
+.map-card.enabled {
+  border-color: var(--accent);
+}
+
+.map-card.enabled .map-card-state {
+  color: var(--accent);
+}
+
+.map-card.disabled img {
+  filter: grayscale(1) brightness(.35);
+}
+
+.map-card.disabled {
+  opacity: .7;
+}
+
+.map-card:hover img {
+  transform: scale(1.04);
+}
+
+@media (max-width: 980px) {
+  .balance-card .line-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .captain-line-btn {
+    width: 100%;
+  }
+
+  .map-pool {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .map-pool {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* v15: 맵/미니게임 4:1 가로 배치 */
+.map-mini-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(210px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.map-section,
+.mini-section {
+  min-width: 0;
+  height: 100%;
+}
+
+.map-section .map-pool {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.map-section .map-card {
+  height: 104px;
+}
+
+.mini-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.mini-section .card-title {
+  align-items: flex-start;
+}
+
+.mini-section .badge {
+  font-size: 10px !important;
+  padding: 4px 7px !important;
+}
+
+.mini-section .mini-tabs {
+  gap: 5px;
+}
+
+.mini-section .tab {
+  padding: 7px 9px !important;
+  font-size: 11px !important;
+}
+
+.mini-section .roulette-wrap {
+  width: 170px !important;
+  height: 170px !important;
+}
+
+.mini-section .roulette-wheel {
+  width: 152px !important;
+  height: 152px !important;
+}
+
+.mini-section .wheel-half {
+  font-size: 20px;
+}
+
+.mini-section .wheel-half.top {
+  padding-top: 24px;
+}
+
+.mini-section .wheel-half.bottom {
+  padding-bottom: 24px;
+}
+
+.mini-section .coin-scene,
+.mini-section .coin {
+  width: 112px !important;
+  height: 112px !important;
+}
+
+.mini-section .coin-face {
+  font-size: 32px !important;
+  border-width: 6px;
+}
+
+/* 선픽 팀 선택 */
+.first-pick-box {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 0 4px;
+}
+
+.first-pick-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.first-pick-btn {
+  border: 1px solid var(--line);
+  background: #11141c;
+  color: var(--muted);
+  border-radius: 9px;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.first-pick-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.first-pick-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1050px) {
+  .map-mini-row {
+    grid-template-columns: 1fr;
+  }
+
+  .map-section .map-pool {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .mini-section .roulette-wrap {
+    width: 210px !important;
+    height: 210px !important;
+  }
+
+  .mini-section .roulette-wheel {
+    width: 190px !important;
+    height: 190px !important;
+  }
+}
+
+@media (max-width: 650px) {
+  .map-section .map-pool {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .first-pick-box {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .first-pick-label {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* v16: 미니게임 영역 폭 소폭 확대 */
+.map-mini-row {
+  grid-template-columns: minmax(0, 3.3fr) minmax(250px, 1fr) !important;
+}
+
+.mini-section .card-title {
+  gap: 8px !important;
+}
+
+.mini-section .card-title h2 {
+  white-space: nowrap;
+}
+
+.mini-section .badge {
+  white-space: nowrap;
+  font-size: 10px !important;
+  padding: 4px 6px !important;
+}
+
+.mini-section .mini-tabs {
+  flex-wrap: nowrap;
+}
+
+.mini-section .tab {
+  white-space: nowrap;
+  flex: 1;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .map-mini-row {
+    grid-template-columns: minmax(0, 3fr) minmax(235px, 1fr) !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .map-mini-row {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -1,21 +1,41 @@
-const STORAGE_KEY="valorant-scrim-tool-v14";
-const defaultMaps=["어센트","바인드","헤이븐","스플릿","로터스","선셋","어비스","펄","프랙처","브리즈","아이스박스","코로드","서밋"];
+const STORAGE_KEY="valorant-scrim-tool-v16";
+
+const defaultMaps=[
+  {name:"스플릿",slug:"split"},
+  {name:"바인드",slug:"bind"},
+  {name:"헤이븐",slug:"haven"},
+  {name:"어센트",slug:"ascent"},
+  {name:"아이스박스",slug:"icebox"},
+  {name:"브리즈",slug:"breeze"},
+  {name:"프랙처",slug:"fracture"},
+  {name:"펄",slug:"pearl"},
+  {name:"로터스",slug:"lotus"},
+  {name:"선셋",slug:"sunset"},
+  {name:"어비스",slug:"abyss"},
+  {name:"코로드",slug:"corrode"},
+  {name:"서밋",slug:"summit"}
+];
 
 const initialState={
   lines:Array.from({length:5},(_,i)=>({
     lineNo:i+1,
-    players:[{id:crypto.randomUUID(),nickname:""},{id:crypto.randomUUID(),nickname:""}],
+    players:[
+      {id:crypto.randomUUID(),nickname:""},
+      {id:crypto.randomUUID(),nickname:""}
+    ],
     relation:"EQUAL"
   })),
+  captainLineNo:1,
   draft:{
     started:false,
     mode:"PAIR",
+    firstPickTeam:"A",
     currentPickTeam:"A",
     picks:[],
     teamA:[],
     teamB:[]
   },
-  maps:defaultMaps.map(name=>({name,enabled:true})),
+  maps:defaultMaps.map(map=>({...map,enabled:true})),
   mapMode:"MANUAL",
   selectedMap:"",
   attackTeam:"A",
@@ -29,162 +49,257 @@ let state=loadState();
 let mapSpinTimer=null;
 
 function $(id){return document.getElementById(id)}
+function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+function saveState(){persist();renderAll()}
+
 function loadState(){
   try{
     const saved=localStorage.getItem(STORAGE_KEY);
     if(!saved)return structuredClone(initialState);
     const parsed=JSON.parse(saved);
     if(!parsed.lines?.[0]?.players)return structuredClone(initialState);
-    return {...structuredClone(initialState),...parsed,draft:{...structuredClone(initialState).draft,...parsed.draft}};
-  }catch{return structuredClone(initialState)}
+
+    return {
+      ...structuredClone(initialState),
+      ...parsed,
+      draft:{...structuredClone(initialState).draft,...parsed.draft},
+      maps:Array.isArray(parsed.maps)&&parsed.maps.length
+        ? parsed.maps.map(m=>({...defaultMaps.find(d=>d.name===m.name),...m}))
+        : structuredClone(initialState.maps)
+    };
+  }catch{
+    return structuredClone(initialState);
+  }
 }
-function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));renderAll()}
+
 function getAllPlayers(){return state.lines.flatMap(line=>line.players)}
 function getPlayer(id){return getAllPlayers().find(p=>p.id===id)}
 function filledPlayers(){return getAllPlayers().filter(p=>p.nickname.trim())}
+function getCaptainLine(){return state.lines.find(line=>line.lineNo===state.captainLineNo)||state.lines[0]}
 function relationToSign(relation){if(relation==="LEFT_HIGH")return ">";if(relation==="RIGHT_HIGH")return "<";return "="}
 function signToRelation(sign){if(sign===">")return"LEFT_HIGH";if(sign==="<")return"RIGHT_HIGH";return"EQUAL"}
+
 function rankLabel(line,playerId){
   if(line.relation==="EQUAL")return null;
   const idx=line.players.findIndex(p=>p.id===playerId);
   const isHigh=(line.relation==="LEFT_HIGH"&&idx===0)||(line.relation==="RIGHT_HIGH"&&idx===1);
   return isHigh?{text:"윗밸",cls:"rank-high"}:{text:"아랫밸",cls:"rank-low"};
 }
-function getLineOnePlayer(slotIdx){return state.lines?.[0]?.players?.[slotIdx]?.nickname?.trim()||""}
+
 function getTeamName(team){
-  const lineOneIds=state.lines[0].players.map(p=>p.id);
+  const captainLine=getCaptainLine();
+  const captainIds=captainLine.players.map(p=>p.id);
   const teamIds=team==="A"?state.draft.teamA:state.draft.teamB;
-  const leaderId=teamIds.find(id=>lineOneIds.includes(id));
-  const leader=getPlayer(leaderId);
-  if(leader?.nickname?.trim())return `${leader.nickname.trim()}팀`;
-  const fallbackName=team==="A"?getLineOnePlayer(0):getLineOnePlayer(1);
-  if(fallbackName)return `${fallbackName}팀`;
-  return `Team ${team}`;
+  const captainId=teamIds.find(id=>captainIds.includes(id));
+  const captain=getPlayer(captainId);
+
+  if(captain?.nickname?.trim())return `${captain.nickname.trim()}팀`;
+
+  const fallback=team==="A"
+    ? captainLine.players[0]?.nickname?.trim()
+    : captainLine.players[1]?.nickname?.trim();
+
+  return fallback?`${fallback}팀`:`Team ${team}`;
 }
+
 function isPicked(id){return state.draft.teamA.includes(id)||state.draft.teamB.includes(id)}
 function pickedTeam(id){
   if(state.draft.teamA.includes(id))return "A";
   if(state.draft.teamB.includes(id))return "B";
   return "";
 }
+function otherTeam(team){return team==="A"?"B":"A"}
+function nextPickTeam(){return state.draft.teamA.length<=state.draft.teamB.length?"A":"B"}
+
 function isLineDone(line){
+  if(line.lineNo===state.captainLineNo)return true;
   const ids=line.players.map(p=>p.id);
   if(state.draft.mode==="PAIR")return ids.some(id=>isPicked(id));
   return ids.every(id=>isPicked(id));
 }
-function filledTeamSize(team){return team==="A"?state.draft.teamA.length:state.draft.teamB.length}
-function otherTeam(team){return team==="A"?"B":"A"}
-function nextPickTeam(){
-  const a=state.draft.teamA.length;
-  const b=state.draft.teamB.length;
-  if(a<=b)return "A";
-  return "B";
-}
 
 function renderTheme(){
   document.body.dataset.theme=state.theme||"valorant";
-  document.querySelectorAll(".theme-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.theme===state.theme));
+  document.querySelectorAll(".theme-btn").forEach(btn=>{
+    btn.classList.toggle("active",btn.dataset.theme===state.theme);
+  });
 }
 function setTheme(theme){state.theme=theme;saveState()}
 function renderPlayers(){$("playerCountBadge").textContent=`${filledPlayers().length} / 10`}
 
 function renderLines(){
-  $("lines").innerHTML=state.lines.map((line,lineIdx)=>`
-    <div class="line-card">
-      <div class="line-title"><span>${line.lineNo}라인</span><span>${line.players.filter(p=>p.nickname.trim()).length}/2</span></div>
-      <input type="text" value="${escapeHtml(line.players[0].nickname)}" placeholder="${line.lineNo}라인 왼쪽" maxlength="20" oninput="setLineNickname(${lineIdx},0,this.value)" />
-      <div class="balance-sign"><select class="balance-select" onchange="setLineSign(${lineIdx},this.value)">
-        <option value="=" ${line.relation==="EQUAL"?"selected":""}>=</option>
-        <option value=">" ${line.relation==="LEFT_HIGH"?"selected":""}>&gt;</option>
-        <option value="<" ${line.relation==="RIGHT_HIGH"?"selected":""}>&lt;</option>
-      </select></div>
-      <input type="text" value="${escapeHtml(line.players[1].nickname)}" placeholder="${line.lineNo}라인 오른쪽" maxlength="20" oninput="setLineNickname(${lineIdx},1,this.value)" />
-    </div>
-  `).join("");
+  $("lines").innerHTML=state.lines.map((line,lineIdx)=>{
+    const captainSelected=line.lineNo===state.captainLineNo;
+    return `
+      <div class="line-card ${captainSelected?"captain-line-selected":""}">
+        <button type="button" class="captain-line-btn ${captainSelected?"active":""}" onclick="setCaptainLine(${line.lineNo})" title="팀장 라인 지정">★</button>
+        <div class="line-title">
+          <span>${line.lineNo}라인</span>
+          <span>${captainSelected?"팀장":"일반"}</span>
+        </div>
+        <input type="text" value="${escapeHtml(line.players[0].nickname)}" placeholder="${line.lineNo}라인 왼쪽" maxlength="20" oninput="setLineNickname(${lineIdx},0,this.value)" />
+        <div class="balance-sign">
+          <select class="balance-select" onchange="setLineSign(${lineIdx},this.value)">
+            <option value="=" ${line.relation==="EQUAL"?"selected":""}>=</option>
+            <option value=">" ${line.relation==="LEFT_HIGH"?"selected":""}>&gt;</option>
+            <option value="<" ${line.relation==="RIGHT_HIGH"?"selected":""}>&lt;</option>
+          </select>
+        </div>
+        <input type="text" value="${escapeHtml(line.players[1].nickname)}" placeholder="${line.lineNo}라인 오른쪽" maxlength="20" oninput="setLineNickname(${lineIdx},1,this.value)" />
+      </div>
+    `;
+  }).join("");
 }
+
+function setCaptainLine(lineNo){
+  state.captainLineNo=lineNo;
+  resetDraft(false);
+  saveState();
+}
+
 function setLineNickname(lineIdx,slotIdx,nickname){
   state.lines[lineIdx].players[slotIdx].nickname=nickname;
   resetDraft(false);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
-  renderPlayers();renderDraft();renderResultText();
+  persist();
+  renderPlayers();
+  renderDraft();
+  renderResultText();
 }
-function setLineSign(lineIdx,sign){state.lines[lineIdx].relation=signToRelation(sign);saveState()}
+
+function setLineSign(lineIdx,sign){
+  state.lines[lineIdx].relation=signToRelation(sign);
+  saveState();
+}
 
 function validateLines(){
   const names=getAllPlayers().map(p=>p.nickname.trim());
   if(names.some(name=>!name))return"모든 라인에 닉네임을 2명씩 입력하세요.";
   const duplicated=names.find((name,idx)=>names.indexOf(name)!==idx);
   if(duplicated)return`중복 닉네임이 있습니다: ${duplicated}`;
+  if(!getCaptainLine().players.every(p=>p.nickname.trim()))return"팀장 라인에 두 명을 모두 입력하세요.";
   return"";
 }
+
 function setDraftMode(mode){
   state.draft.mode=mode;
   resetDraft(false);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
-  renderDraft();renderResultText();
+  persist();
+  renderDraft();
+  renderResultText();
 }
+
+function setFirstPickTeam(team){
+  if(state.draft.started||state.draft.teamA.length>0||state.draft.teamB.length>0)return;
+  state.draft.firstPickTeam=team;
+  state.draft.currentPickTeam=team;
+  persist();
+  renderDraft();
+}
+
+function assignCaptains(){
+  const [captainA,captainB]=getCaptainLine().players;
+  state.draft.teamA=[captainA.id];
+  state.draft.teamB=[captainB.id];
+  state.draft.picks=[{
+    mode:"CAPTAIN",
+    lineNo:state.captainLineNo,
+    aPlayerId:captainA.id,
+    bPlayerId:captainB.id
+  }];
+  state.draft.currentPickTeam=state.draft.firstPickTeam||"A";
+}
+
 function startDraft(){
   const error=validateLines();
   if(error)return alert(error);
+
+  const mode=state.draft.mode;
   resetDraft(false);
-  state.draft.started=true;
-  if(state.draft.mode==="RANDOM"){
+  state.draft.mode=mode;
+  assignCaptains();
+
+  if(mode==="RANDOM"){
     randomAssignTeams();
     state.draft.started=false;
+  }else{
+    state.draft.started=true;
   }
+
   saveState();
 }
+
 function resetDraft(shouldRender=true){
   const mode=state.draft.mode||"PAIR";
-  state.draft={started:false,mode,currentPickTeam:"A",picks:[],teamA:[],teamB:[]};
+  const firstPickTeam=state.draft.firstPickTeam||"A";
+  state.draft={
+    started:false,
+    mode,
+    firstPickTeam,
+    currentPickTeam:firstPickTeam,
+    picks:[],
+    teamA:[],
+    teamB:[]
+  };
   if(shouldRender)saveState();
 }
+
 function randomAssignTeams(){
-  state.draft.teamA=[];
-  state.draft.teamB=[];
-  state.draft.picks=[];
-  state.lines.forEach(line=>{
-    const shuffled=[...line.players].sort(()=>Math.random()-0.5);
-    const aFirst=Math.random()<0.5;
-    const aPlayer=aFirst?shuffled[0]:shuffled[1];
-    const bPlayer=aFirst?shuffled[1]:shuffled[0];
-    state.draft.teamA.push(aPlayer.id);
-    state.draft.teamB.push(bPlayer.id);
-    state.draft.picks.push({mode:"RANDOM",lineNo:line.lineNo,aPlayerId:aPlayer.id,bPlayerId:bPlayer.id});
-  });
+  state.lines
+    .filter(line=>line.lineNo!==state.captainLineNo)
+    .forEach(line=>{
+      const players=[...line.players];
+      if(Math.random()<.5)players.reverse();
+      state.draft.teamA.push(players[0].id);
+      state.draft.teamB.push(players[1].id);
+      state.draft.picks.push({
+        mode:"RANDOM",
+        lineNo:line.lineNo,
+        aPlayerId:players[0].id,
+        bPlayerId:players[1].id
+      });
+    });
 }
 
 function pickPlayer(playerId){
   const draft=state.draft;
-  if(!draft.started||draft.mode==="RANDOM")return;
-  if(isPicked(playerId))return;
+  if(!draft.started||draft.mode==="RANDOM"||isPicked(playerId))return;
+
   const line=state.lines.find(l=>l.players.some(p=>p.id===playerId));
-  if(!line)return;
+  if(!line||line.lineNo===state.captainLineNo)return;
 
   if(draft.mode==="PAIR"){
     const ids=line.players.map(p=>p.id);
     if(ids.some(id=>isPicked(id)))return;
+
     const pickTeam=draft.currentPickTeam;
     const remainTeam=otherTeam(pickTeam);
     const otherId=ids.find(id=>id!==playerId);
-    if(filledTeamSize(pickTeam)>=5||filledTeamSize(remainTeam)>=5)return alert("이미 팀 인원이 가득 찼습니다.");
+
     draft[pickTeam==="A"?"teamA":"teamB"].push(playerId);
     draft[remainTeam==="A"?"teamA":"teamB"].push(otherId);
     draft.picks.push({mode:"PAIR",lineNo:line.lineNo,pickTeam,pickedPlayerId:playerId,autoPlayerId:otherId});
   }else{
-    const pickTeam=nextPickTeam();
-    if(filledTeamSize(pickTeam)>=5)return alert("이미 팀 인원이 가득 찼습니다.");
-    draft[pickTeam==="A"?"teamA":"teamB"].push(playerId);
+    const pickTeam=draft.currentPickTeam;
+    const targetTeam=pickTeam==="A"?draft.teamA:draft.teamB;
+
+    if(targetTeam.length>=5){
+      draft.currentPickTeam=otherTeam(pickTeam);
+      return pickPlayer(playerId);
+    }
+
+    targetTeam.push(playerId);
     draft.picks.push({mode:"FREE",lineNo:line.lineNo,pickTeam,pickedPlayerId:playerId});
   }
 
   if(draft.teamA.length===5&&draft.teamB.length===5){
     draft.started=false;
   }else{
-    draft.currentPickTeam=nextPickTeam();
+    draft.currentPickTeam=otherTeam(draft.currentPickTeam);
   }
+
   saveState();
 }
+
 function setAttackTeam(team){state.attackTeam=team;saveState()}
 
 function renderDraft(){
@@ -193,48 +308,59 @@ function renderDraft(){
     r.disabled=state.draft.started||state.draft.teamA.length>0||state.draft.teamB.length>0;
   });
 
-  const modeLabel={PAIR:"페어 드래프트",FREE:"자유 드래프트",RANDOM:"랜덤 팀 배정"}[state.draft.mode]||"페어 드래프트";
+  document.querySelectorAll(".first-pick-btn").forEach(btn=>{
+    const locked=state.draft.started||state.draft.teamA.length>0||state.draft.teamB.length>0;
+    btn.classList.toggle("active",btn.dataset.team===state.draft.firstPickTeam);
+    btn.disabled=locked;
+  });
+
+  const modeLabel={PAIR:"페어 드래프트",FREE:"자유 드래프트",RANDOM:"랜덤 팀 배정"}[state.draft.mode];
+
   if(!state.draft.started&&state.draft.teamA.length===0&&state.draft.teamB.length===0){
-    $("draftStatus").textContent=`드래프트를 시작하세요. 현재 모드: ${modeLabel}`;
+    $("draftStatus").textContent=`드래프트를 시작하세요. 팀장 라인: ${state.captainLineNo}라인 · ${modeLabel}`;
   }else if(!state.draft.started&&state.draft.teamA.length===5&&state.draft.teamB.length===5){
     $("draftStatus").textContent=`드래프트 완료 · ${modeLabel}`;
-  }else if(state.draft.mode==="FREE"){
-    $("draftStatus").textContent=`현재 차례: ${getTeamName(nextPickTeam())} · 자유 선택 가능`;
   }else{
-    $("draftStatus").textContent=`현재 차례: ${getTeamName(state.draft.currentPickTeam)} · 원하는 라인에서 선택`;
+    $("draftStatus").textContent=`현재 차례: ${getTeamName(state.draft.currentPickTeam)} · 팀장 라인은 자동 배정됨`;
   }
 
   renderDraftBoard();
   renderTeams();
 }
+
 function renderDraftBoard(){
   $("draftBoard").innerHTML=state.lines.map(line=>{
-    const sign=relationToSign(line.relation);
+    const isCaptain=line.lineNo===state.captainLineNo;
     const done=isLineDone(line);
+
     return `
-      <div class="draft-line ${done?"done":""}">
+      <div class="draft-line ${done?"done":""} ${isCaptain?"captain-draft-line":""}">
         <div class="draft-line-head">
-          <span>${line.lineNo}라인</span>
-          <span>${done?"선택 완료":"선택 가능"}</span>
+          <span>${line.lineNo}라인 ${isCaptain?"· 팀장 라인":""}</span>
+          <span>${isCaptain?"자동 배정":done?"선택 완료":"선택 가능"}</span>
         </div>
         <div class="draft-line-main">
-          ${renderDraftPlayerButton(line,line.players[0])}
-          <div class="draft-sign">${escapeHtml(sign)}</div>
-          ${renderDraftPlayerButton(line,line.players[1])}
+          ${renderDraftPlayerButton(line,line.players[0],isCaptain)}
+          <div class="draft-sign">${escapeHtml(relationToSign(line.relation))}</div>
+          ${renderDraftPlayerButton(line,line.players[1],isCaptain)}
         </div>
       </div>
     `;
   }).join("");
 }
-function renderDraftPlayerButton(line,player){
+
+function renderDraftPlayerButton(line,player,isCaptain){
   const team=pickedTeam(player.id);
   const picked=!!team;
   const rank=rankLabel(line,player.id);
-  const disabled=!state.draft.started||state.draft.mode==="RANDOM"||picked||(state.draft.mode==="PAIR"&&isLineDone(line));
+  const disabled=isCaptain||!state.draft.started||state.draft.mode==="RANDOM"||picked||(state.draft.mode==="PAIR"&&isLineDone(line));
+
   let tag="";
-  if(picked) tag=`${getTeamName(team)} 선택됨`;
-  else if(rank) tag=rank.text;
+  if(isCaptain)tag=picked?`${getTeamName(team)} 팀장`:"팀장";
+  else if(picked)tag=`${getTeamName(team)} 선택됨`;
+  else if(rank)tag=rank.text;
   else tag="선택";
+
   return `
     <button class="draft-player-btn ${team==="A"?"picked-a":team==="B"?"picked-b":""}" onclick="pickPlayer('${player.id}')" ${disabled?"disabled":""}>
       <span>${escapeHtml(player.nickname||"-")}</span>
@@ -242,6 +368,7 @@ function renderDraftPlayerButton(line,player){
     </button>
   `;
 }
+
 function renderTeams(){
   const teamHtml=(teamCode,ids)=>{
     const name=getTeamName(teamCode);
@@ -252,55 +379,92 @@ function renderTeams(){
           <button class="btn side-btn ${state.attackTeam===teamCode?"active":""}" onclick="setAttackTeam('${teamCode}')">${state.attackTeam===teamCode?"선공격":"선공 지정"}</button>
         </div>
         <div class="team-list">
-          ${ids.map(id=>{const p=getPlayer(id);return`<div class="player-row"><span>${escapeHtml(p?.nickname||"-")}</span></div>`}).join("")||`<div class="hint">아직 없음</div>`}
+          ${ids.map((id,idx)=>{
+            const p=getPlayer(id);
+            return `<div class="player-row"><span>${escapeHtml(p?.nickname||"-")}${idx===0?" · 팀장":""}</span></div>`;
+          }).join("")||`<div class="hint">아직 없음</div>`}
         </div>
       </div>
     `;
   };
+
   $("draftArea").innerHTML=teamHtml("A",state.draft.teamA)+teamHtml("B",state.draft.teamB);
 }
 
 function renderMaps(){
-  $("mapPool").innerHTML=state.maps.map((m,i)=>`<div class="map-item"><label><input type="checkbox" ${m.enabled?"checked":""} onchange="toggleMap(${i},this.checked)" />${escapeHtml(m.name)}</label></div>`).join("");
+  $("mapPool").innerHTML=state.maps.map((m,i)=>`
+    <button type="button" class="map-card ${m.enabled?"enabled":"disabled"}" onclick="toggleMap(${i},${!m.enabled})" aria-pressed="${m.enabled}">
+      <img src="./images/maps/${m.slug}.webp" alt="${escapeHtml(m.name)} 맵 이미지" />
+      <span class="map-card-overlay"></span>
+      <span class="map-card-name">${escapeHtml(m.name)}</span>
+      <span class="map-card-state">${m.enabled?"포함":"제외"}</span>
+    </button>
+  `).join("");
+
   document.querySelectorAll("input[name='mapMode']").forEach(r=>{r.checked=r.value===state.mapMode});
+
   const manualSelect=$("manualMapSelect");
   manualSelect.innerHTML=state.maps.filter(m=>m.enabled).map(m=>`<option value="${m.name}" ${state.selectedMap===m.name?"selected":""}>${m.name}</option>`).join("");
+
   $("pickRandomMapBtn").style.display=state.mapMode==="RANDOM"?"block":"none";
   manualSelect.style.display=state.mapMode==="MANUAL"?"block":"none";
   $("mapRouletteBox").classList.toggle("hidden",state.mapMode!=="RANDOM");
   $("selectedMapBox").textContent=`선택 맵: ${state.selectedMap||"없음"}`;
-  if(!mapSpinTimer){$("mapRouletteName").textContent=state.selectedMap||"-";$("mapRouletteName").classList.remove("spinning","final")}
+
+  if(!mapSpinTimer){
+    $("mapRouletteName").textContent=state.selectedMap||"-";
+    $("mapRouletteName").classList.remove("spinning","final");
+  }
 }
+
 function toggleMap(index,enabled){
   state.maps[index].enabled=enabled;
-  if(!state.maps.some(m=>m.name===state.selectedMap&&m.enabled))state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+  if(!state.maps.some(m=>m.name===state.selectedMap&&m.enabled)){
+    state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+  }
   saveState();
 }
-function setMapMode(mode){state.mapMode=mode;if(mode==="MANUAL"&&!state.selectedMap)state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";saveState()}
+
+function setMapMode(mode){
+  state.mapMode=mode;
+  if(mode==="MANUAL"&&!state.selectedMap){
+    state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+  }
+  saveState();
+}
+
 function pickRandomMap(){
   const enabled=state.maps.filter(m=>m.enabled).map(m=>m.name);
-  if(enabled.length===0)return alert("체크된 맵이 없습니다.");
+  if(enabled.length===0)return alert("포함된 맵이 없습니다.");
+
   const finalMap=enabled[Math.floor(Math.random()*enabled.length)];
   const nameBox=$("mapRouletteName");
   const randomBtn=$("pickRandomMapBtn");
+
   clearTimeout(mapSpinTimer);
   nameBox.classList.remove("final");
   nameBox.classList.add("spinning");
   randomBtn.disabled=true;
   randomBtn.textContent="맵 선정 중...";
+
   let tick=0,delay=45;
   const spinStep=()=>{
     nameBox.textContent=enabled[Math.floor(Math.random()*enabled.length)];
     tick+=1;
     clearTimeout(mapSpinTimer);
-    if(tick<18){delay+=6;mapSpinTimer=setTimeout(spinStep,delay)}
-    else if(tick<28){delay+=24;mapSpinTimer=setTimeout(spinStep,delay)}
-    else{
+
+    if(tick<18){
+      delay+=6;
+      mapSpinTimer=setTimeout(spinStep,delay);
+    }else if(tick<28){
+      delay+=24;
+      mapSpinTimer=setTimeout(spinStep,delay);
+    }else{
       nameBox.textContent=finalMap;
       nameBox.classList.remove("spinning");
       nameBox.classList.add("final");
       state.selectedMap=finalMap;
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+      persist();
       renderResultText();
       $("selectedMapBox").textContent=`선택 맵: ${state.selectedMap}`;
       randomBtn.disabled=false;
@@ -308,9 +472,15 @@ function pickRandomMap(){
       mapSpinTimer=null;
     }
   };
+
   spinStep();
 }
-function resetMaps(){state.maps=defaultMaps.map(name=>({name,enabled:true}));state.selectedMap="";saveState()}
+
+function resetMaps(){
+  state.maps=defaultMaps.map(map=>({...map,enabled:true}));
+  state.selectedMap="";
+  saveState();
+}
 
 function renderMiniGame(){
   document.querySelectorAll(".tab").forEach(btn=>btn.classList.toggle("active",btn.dataset.game===state.activeGame));
@@ -319,74 +489,119 @@ function renderMiniGame(){
   $("rouletteWheel").style.transform=`rotate(${state.rouletteDeg}deg)`;
   $("coin").style.transform=`rotateY(${state.coinDeg||0}deg)`;
 }
+
 function normalizeDeg(deg){return((deg%360)+360)%360}
+
 function spinRoulette(){
   const winner=Math.random()<.5?"A":"B";
   const current=normalizeDeg(state.rouletteDeg);
   const desired=winner==="A"?0:180;
   const delta=normalizeDeg(desired-current);
+
   state.rouletteDeg+=360*6+delta;
   $("rouletteResult").textContent="결과 확인 중...";
   saveState();
+
   setTimeout(()=>{$("rouletteResult").textContent=`결과: ${getTeamName(winner)}`},2900);
 }
+
 function flipCoin(){
   const winner=Math.random()<.5?"A":"B";
   const current=normalizeDeg(state.coinDeg||0);
   const desired=winner==="A"?0:180;
   const delta=normalizeDeg(desired-current);
+
   state.coinDeg=(state.coinDeg||0)+360*5+delta;
   $("coinResult").textContent="결과 확인 중...";
   saveState();
+
   setTimeout(()=>{$("coinResult").textContent=`결과: ${getTeamName(winner)}`},1400);
 }
+
 function renderResultText(){
   const teamAName=getTeamName("A");
   const teamBName=getTeamName("B");
   const teamA=state.draft.teamA.map(id=>getPlayer(id)?.nickname).filter(Boolean);
   const teamB=state.draft.teamB.map(id=>getPlayer(id)?.nickname).filter(Boolean);
   const defense=state.attackTeam==="A"?"B":"A";
+  const modeLabel={PAIR:"페어 드래프트",FREE:"자유 드래프트",RANDOM:"랜덤 팀 배정"}[state.draft.mode];
+
   $("versusTitle").textContent=`${teamAName} VS ${teamBName}`;
-  const lineInfo=state.lines.map(line=>`${line.lineNo}라인: ${line.players[0].nickname.trim()||"-"} ${relationToSign(line.relation)} ${line.players[1].nickname.trim()||"-"}`).join("\n");
-  const text=[
+
+  const lineInfo=state.lines.map(line=>{
+    const captainMark=line.lineNo===state.captainLineNo?" [팀장]":"";
+    return `${line.lineNo}라인${captainMark}: ${line.players[0].nickname.trim()||"-"} ${relationToSign(line.relation)} ${line.players[1].nickname.trim()||"-"}`;
+  }).join("\n");
+
+  $("resultText").textContent=[
     "===== 발로란트 내전 =====","",
     `${teamAName} VS ${teamBName}`,"",
     `맵: ${state.selectedMap||"미정"}`,
     `선공격: ${getTeamName(state.attackTeam)}`,
-    `선수비: ${getTeamName(defense)}`,"",
-    `[드래프트 모드] ${({PAIR:"페어 드래프트",FREE:"자유 드래프트",RANDOM:"랜덤 팀 배정"}[state.draft.mode]||"페어 드래프트")}`,"",
+    `선수비: ${getTeamName(defense)}`,
+    `드래프트 모드: ${modeLabel}`,"",
     "[밸런스 라인]",lineInfo,"",
-    `[${teamAName}]`,...(teamA.length?teamA.map((n,i)=>`${i+1}. ${n}`):["-"]),"",
-    `[${teamBName}]`,...(teamB.length?teamB.map((n,i)=>`${i+1}. ${n}`):["-"])
+    `[${teamAName}]`,...(teamA.length?teamA.map((n,i)=>`${i+1}. ${n}${i===0?" (팀장)":""}`):["-"]),"",
+    `[${teamBName}]`,...(teamB.length?teamB.map((n,i)=>`${i+1}. ${n}${i===0?" (팀장)":""}`):["-"])
   ].join("\n");
-  $("resultText").textContent=text;
 }
+
 async function copyResult(){
-  try{await navigator.clipboard.writeText($("resultText").textContent);alert("결과를 복사했습니다.")}
-  catch{alert("복사에 실패했습니다. 직접 선택해서 복사해주세요.")}
+  try{
+    await navigator.clipboard.writeText($("resultText").textContent);
+    alert("결과를 복사했습니다.");
+  }catch{
+    alert("복사에 실패했습니다. 직접 선택해서 복사해주세요.");
+  }
 }
+
 function resetAll(){
   if(!confirm("전체 데이터를 초기화할까요?"))return;
   state=structuredClone(initialState);
   localStorage.removeItem(STORAGE_KEY);
   renderAll();
 }
-function escapeHtml(str){return String(str).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
-function renderAll(){renderTheme();renderPlayers();renderLines();renderDraft();renderMaps();renderMiniGame();renderResultText()}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function renderAll(){
+  renderTheme();
+  renderPlayers();
+  renderLines();
+  renderDraft();
+  renderMaps();
+  renderMiniGame();
+  renderResultText();
+}
 
 $("startDraftBtn").addEventListener("click",startDraft);
 $("resetDraftBtn").addEventListener("click",()=>resetDraft(true));
 $("resetMapsBtn").addEventListener("click",resetMaps);
 $("pickRandomMapBtn").addEventListener("click",pickRandomMap);
 $("manualMapSelect").addEventListener("change",e=>{state.selectedMap=e.target.value;saveState()});
+
 document.querySelectorAll("input[name='mapMode']").forEach(r=>r.addEventListener("change",e=>setMapMode(e.target.value)));
 document.querySelectorAll("input[name='draftMode']").forEach(r=>r.addEventListener("change",e=>setDraftMode(e.target.value)));
+document.querySelectorAll(".first-pick-btn").forEach(btn=>btn.addEventListener("click",()=>setFirstPickTeam(btn.dataset.team)));
+
 $("copyResultBtn").addEventListener("click",copyResult);
 $("resetAllBtn").addEventListener("click",resetAll);
+
 document.querySelectorAll(".theme-btn").forEach(btn=>btn.addEventListener("click",()=>setTheme(btn.dataset.theme)));
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{state.activeGame=btn.dataset.game;saveState()}));
+
 $("spinRouletteBtn").addEventListener("click",spinRoulette);
 $("flipCoinBtn").addEventListener("click",flipCoin);
 
-if(!state.selectedMap)state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+if(!state.selectedMap){
+  state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+}
+
 renderAll();

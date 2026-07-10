@@ -31,7 +31,7 @@
           <span id="playerCountBadge" class="badge">0 / 10</span>
         </div>
         <div id="lines" class="lines"></div>
-        <p class="hint">표시는 왼쪽 기준입니다. <b>&gt;</b> 왼쪽 윗밸, <b>&lt;</b> 오른쪽 윗밸, <b>=</b> 동등.</p>
+        <p class="hint">표시는 왼쪽 기준입니다. <b>&gt;</b> 왼쪽 윗밸, <b>&lt;</b> 오른쪽 윗밸, <b>=</b> 동등. 별 버튼으로 팀장 라인을 지정하세요.</p>
       </section>
 
       <section class="card draft-card">
@@ -67,12 +67,19 @@
           </label>
         </div>
 
+        <div class="first-pick-box">
+          <span class="first-pick-label">선픽 팀</span>
+          <button type="button" class="first-pick-btn active" data-team="A">A팀 선픽</button>
+          <button type="button" class="first-pick-btn" data-team="B">B팀 선픽</button>
+        </div>
+
         <div id="draftStatus" class="status-box">드래프트를 시작하세요.</div>
         <div id="draftBoard" class="draft-board"></div>
         <div id="draftArea" class="draft-area"></div>
       </section>
 
-      <section class="card">
+      <div class="map-mini-row">
+      <section class="card map-section">
         <div class="card-title">
           <h2>3. 맵 선택</h2>
           <button id="resetMapsBtn" class="btn ghost">맵풀 초기화</button>
@@ -95,7 +102,7 @@
         <div id="selectedMapBox" class="result-box">선택 맵: 없음</div>
       </section>
 
-      <section class="card">
+      <section class="card mini-section">
         <div class="card-title">
           <h2>4. 미니게임</h2>
           <span class="badge">선픽/후픽 · 공수 결정용</span>
@@ -129,6 +136,8 @@
         </div>
       </section>
 
+      </div>
+
       <section class="card wide">
         <div class="card-title">
           <h2>5. 최종 결과</h2>
@@ -139,7 +148,7 @@
       </section>
     </main>
 
-    <footer class="footer-credit">made for 인간쓰레기(p.s 돈승기바보)</footer>
+    <footer class="footer-credit">made for 인간쓰레기</footer>
   </div>
   <script src="./app.js"></script>
 </body>
