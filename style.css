@@ -814,3 +814,66 @@ input:focus,select:focus{border-color:var(--accent)}
   .turn-control-label{grid-column:1/-1}
   .undo-btn{grid-column:1/-1}
 }
+
+
+/* v18: 직접 선택 / 랜덤 맵풀 모드 분리 */
+.map-card.manual-card .map-card-state {
+  display: none;
+}
+
+.map-card.manual-card {
+  border-color: var(--line);
+}
+
+.map-card.manual-card.unselected {
+  opacity: .82;
+}
+
+.map-card.manual-card.unselected img {
+  filter: brightness(.72);
+}
+
+.map-card.manual-card.selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 20px var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.map-card.manual-card.selected img {
+  filter: brightness(1.05);
+}
+
+.map-card-check {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 3;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 950;
+  box-shadow: 0 3px 10px rgba(0,0,0,.4);
+}
+
+.map-card.random-card.enabled {
+  border-color: var(--accent);
+}
+
+.map-card.random-card.disabled img {
+  filter: grayscale(1) brightness(.35);
+}
+
+.map-card.random-card.disabled {
+  opacity: .7;
+}
+
+.map-card.manual-card:hover {
+  border-color: var(--accent);
+}

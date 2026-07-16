@@ -1,4 +1,4 @@
-const STORAGE_KEY="valorant-scrim-tool-v17";
+const STORAGE_KEY="valorant-scrim-tool-v18";
 
 const defaultMaps=[
   {name:"스플릿",slug:"split"},
@@ -452,22 +452,38 @@ function renderTeams(){
 }
 
 function renderMaps(){
-  $("mapPool").innerHTML=state.maps.map((m,i)=>`
-    <button type="button" class="map-card ${m.enabled?"enabled":"disabled"}" onclick="toggleMap(${i},${!m.enabled})" aria-pressed="${m.enabled}">
-      <img src="./images/maps/${m.slug}.webp" alt="${escapeHtml(m.name)} 맵 이미지" />
-      <span class="map-card-overlay"></span>
-      <span class="map-card-name">${escapeHtml(m.name)}</span>
-      <span class="map-card-state">${m.enabled?"포함":"제외"}</span>
-    </button>
-  `).join("");
+  $("mapPool").innerHTML=state.maps.map((m,i)=>{
+    const isManual=state.mapMode==="MANUAL";
+    const isSelected=isManual&&state.selectedMap===m.name;
+    const cardClass=isManual
+      ? `map-card manual-card ${isSelected?"selected":"unselected"}`
+      : `map-card random-card ${m.enabled?"enabled":"disabled"}`;
 
-  document.querySelectorAll("input[name='mapMode']").forEach(r=>{r.checked=r.value===state.mapMode});
+    const stateBadge=isManual
+      ? (isSelected?'<span class="map-card-check">✓</span>':'')
+      : `<span class="map-card-state">${m.enabled?"포함":"제외"}</span>`;
 
-  const manualSelect=$("manualMapSelect");
-  manualSelect.innerHTML=state.maps.filter(m=>m.enabled).map(m=>`<option value="${m.name}" ${state.selectedMap===m.name?"selected":""}>${m.name}</option>`).join("");
+    return `
+      <button
+        type="button"
+        class="${cardClass}"
+        onclick="handleMapCardClick(${i})"
+        aria-pressed="${isManual?isSelected:m.enabled}"
+      >
+        <img src="./images/maps/${m.slug}.webp" alt="${escapeHtml(m.name)} 맵 이미지" />
+        <span class="map-card-overlay"></span>
+        <span class="map-card-name">${escapeHtml(m.name)}</span>
+        ${stateBadge}
+      </button>
+    `;
+  }).join("");
 
+  document.querySelectorAll("input[name='mapMode']").forEach(r=>{
+    r.checked=r.value===state.mapMode;
+  });
+
+  $("manualMapSelect").classList.add("hidden");
   $("pickRandomMapBtn").style.display=state.mapMode==="RANDOM"?"block":"none";
-  manualSelect.style.display=state.mapMode==="MANUAL"?"block":"none";
   $("mapRouletteBox").classList.toggle("hidden",state.mapMode!=="RANDOM");
   $("selectedMapBox").textContent=`선택 맵: ${state.selectedMap||"없음"}`;
 
@@ -475,6 +491,27 @@ function renderMaps(){
     $("mapRouletteName").textContent=state.selectedMap||"-";
     $("mapRouletteName").classList.remove("spinning","final");
   }
+}
+
+function handleMapCardClick(index){
+  const map=state.maps[index];
+  if(!map)return;
+
+  if(state.mapMode==="MANUAL"){
+    state.selectedMap=map.name;
+    persist();
+    renderMaps();
+    renderResultText();
+    return;
+  }
+
+  map.enabled=!map.enabled;
+
+  if(!state.maps.some(m=>m.name===state.selectedMap&&m.enabled)){
+    state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+  }
+
+  saveState();
 }
 
 function toggleMap(index,enabled){
@@ -487,9 +524,20 @@ function toggleMap(index,enabled){
 
 function setMapMode(mode){
   state.mapMode=mode;
-  if(mode==="MANUAL"&&!state.selectedMap){
-    state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+
+  if(mode==="MANUAL"){
+    if(!state.selectedMap){
+      state.selectedMap=state.maps[0]?.name||"";
+    }
+  }else{
+    if(!state.maps.some(m=>m.enabled)){
+      state.maps.forEach(m=>m.enabled=true);
+    }
+    if(!state.maps.some(m=>m.name===state.selectedMap&&m.enabled)){
+      state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
+    }
   }
+
   saveState();
 }
 
