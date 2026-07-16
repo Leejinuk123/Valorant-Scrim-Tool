@@ -758,3 +758,59 @@ input:focus,select:focus{border-color:var(--accent)}
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* v17: 현재 픽 팀 수동 변경 + 다중 되돌리기 */
+.turn-control-box {
+  display:grid;
+  grid-template-columns:auto 1fr 1fr auto;
+  gap:6px;
+  align-items:center;
+  margin:7px 0 3px;
+  padding:7px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#11141c;
+}
+.turn-control-label {
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.turn-team-btn {
+  border:1px solid var(--line);
+  background:var(--card2);
+  color:var(--muted);
+  border-radius:9px;
+  padding:7px 8px;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:900;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.turn-team-btn.active {
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--text);
+  box-shadow:0 0 12px var(--accent-soft);
+}
+.turn-team-btn:disabled,
+.undo-btn:disabled {
+  opacity:.38;
+  cursor:not-allowed;
+}
+.undo-btn {
+  white-space:nowrap;
+  padding:7px 9px !important;
+  font-size:11px !important;
+}
+.turn-control-box.inactive {opacity:.62}
+@media (max-width:700px){
+  .turn-control-box{grid-template-columns:1fr 1fr}
+  .turn-control-label{grid-column:1/-1}
+  .undo-btn{grid-column:1/-1}
+}

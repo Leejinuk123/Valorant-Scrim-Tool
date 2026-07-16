@@ -1,4 +1,4 @@
-const STORAGE_KEY="valorant-scrim-tool-v16";
+const STORAGE_KEY="valorant-scrim-tool-v17";
 
 const defaultMaps=[
   {name:"스플릿",slug:"split"},
@@ -32,6 +32,7 @@ const initialState={
     firstPickTeam:"A",
     currentPickTeam:"A",
     picks:[],
+    history:[],
     teamA:[],
     teamB:[]
   },
@@ -188,6 +189,50 @@ function setDraftMode(mode){
   renderResultText();
 }
 
+function createDraftSnapshot(){
+  return {
+    started:state.draft.started,
+    mode:state.draft.mode,
+    firstPickTeam:state.draft.firstPickTeam,
+    currentPickTeam:state.draft.currentPickTeam,
+    picks:structuredClone(state.draft.picks),
+    teamA:[...state.draft.teamA],
+    teamB:[...state.draft.teamB]
+  };
+}
+
+function pushDraftHistory(){
+  state.draft.history.push(createDraftSnapshot());
+}
+
+function restoreDraftSnapshot(snapshot){
+  const history=state.draft.history;
+  state.draft={...snapshot,history};
+}
+
+function setCurrentPickTeam(team){
+  if(!state.draft.started||state.draft.mode==="RANDOM")return;
+  if(state.draft.currentPickTeam===team)return;
+
+  const target=team==="A"?state.draft.teamA:state.draft.teamB;
+  if(target.length>=5)return alert(`${getTeamName(team)}은 이미 5명입니다.`);
+
+  pushDraftHistory();
+  state.draft.currentPickTeam=team;
+  persist();
+  renderDraft();
+}
+
+function undoDraftAction(){
+  if(!state.draft.history.length)return alert("되돌릴 드래프트 기록이 없습니다.");
+
+  const snapshot=state.draft.history.pop();
+  restoreDraftSnapshot(snapshot);
+  persist();
+  renderDraft();
+  renderResultText();
+}
+
 function setFirstPickTeam(team){
   if(state.draft.started||state.draft.teamA.length>0||state.draft.teamB.length>0)return;
   state.draft.firstPickTeam=team;
@@ -207,6 +252,7 @@ function assignCaptains(){
     bPlayerId:captainB.id
   }];
   state.draft.currentPickTeam=state.draft.firstPickTeam||"A";
+  state.draft.history=[];
 }
 
 function startDraft(){
@@ -237,6 +283,7 @@ function resetDraft(shouldRender=true){
     firstPickTeam,
     currentPickTeam:firstPickTeam,
     picks:[],
+    history:[],
     teamA:[],
     teamB:[]
   };
@@ -267,6 +314,8 @@ function pickPlayer(playerId){
   const line=state.lines.find(l=>l.players.some(p=>p.id===playerId));
   if(!line||line.lineNo===state.captainLineNo)return;
 
+  pushDraftHistory();
+
   if(draft.mode==="PAIR"){
     const ids=line.players.map(p=>p.id);
     if(ids.some(id=>isPicked(id)))return;
@@ -283,6 +332,7 @@ function pickPlayer(playerId){
     const targetTeam=pickTeam==="A"?draft.teamA:draft.teamB;
 
     if(targetTeam.length>=5){
+      state.draft.history.pop();
       draft.currentPickTeam=otherTeam(pickTeam);
       return pickPlayer(playerId);
     }
@@ -314,6 +364,16 @@ function renderDraft(){
     btn.disabled=locked;
   });
 
+  const turnLocked=!state.draft.started||state.draft.mode==="RANDOM";
+  document.querySelectorAll(".turn-team-btn").forEach(btn=>{
+    btn.textContent=getTeamName(btn.dataset.team);
+    btn.classList.toggle("active",btn.dataset.team===state.draft.currentPickTeam);
+    btn.disabled=turnLocked||(btn.dataset.team==="A"?state.draft.teamA.length:state.draft.teamB.length)>=5;
+  });
+
+  $("undoPickBtn").disabled=state.draft.history.length===0;
+  $("turnControlBox").classList.toggle("inactive",turnLocked);
+
   const modeLabel={PAIR:"페어 드래프트",FREE:"자유 드래프트",RANDOM:"랜덤 팀 배정"}[state.draft.mode];
 
   if(!state.draft.started&&state.draft.teamA.length===0&&state.draft.teamB.length===0){
@@ -321,7 +381,7 @@ function renderDraft(){
   }else if(!state.draft.started&&state.draft.teamA.length===5&&state.draft.teamB.length===5){
     $("draftStatus").textContent=`드래프트 완료 · ${modeLabel}`;
   }else{
-    $("draftStatus").textContent=`현재 차례: ${getTeamName(state.draft.currentPickTeam)} · 팀장 라인은 자동 배정됨`;
+    $("draftStatus").textContent=`현재 차례: ${getTeamName(state.draft.currentPickTeam)} · 자동 교대 / 필요 시 현재 선택 팀 변경 가능`;
   }
 
   renderDraftBoard();
@@ -590,6 +650,8 @@ $("manualMapSelect").addEventListener("change",e=>{state.selectedMap=e.target.va
 document.querySelectorAll("input[name='mapMode']").forEach(r=>r.addEventListener("change",e=>setMapMode(e.target.value)));
 document.querySelectorAll("input[name='draftMode']").forEach(r=>r.addEventListener("change",e=>setDraftMode(e.target.value)));
 document.querySelectorAll(".first-pick-btn").forEach(btn=>btn.addEventListener("click",()=>setFirstPickTeam(btn.dataset.team)));
+document.querySelectorAll(".turn-team-btn").forEach(btn=>btn.addEventListener("click",()=>setCurrentPickTeam(btn.dataset.team)));
+$("undoPickBtn").addEventListener("click",undoDraftAction);
 
 $("copyResultBtn").addEventListener("click",copyResult);
 $("resetAllBtn").addEventListener("click",resetAll);
