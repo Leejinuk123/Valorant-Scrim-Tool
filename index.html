@@ -157,6 +157,21 @@
 
     <footer class="footer-credit">made for 인간쓰레기</footer>
   </div>
-  <script src="./app.js"></script>
+  <script src="./app.js" defer></script>
+
+  <aside id="stickyNote" class="sticky-note">
+    <div class="sticky-note-header">
+      <strong><span class="sticky-note-icon">✦</span> 내전 메모</strong>
+      <div class="sticky-note-actions">
+        <button type="button" id="clearNoteBtn" class="sticky-icon-btn" title="메모 전체 지우기" aria-label="메모 전체 지우기">초기화</button>
+        <button type="button" id="toggleNoteBtn" class="sticky-icon-btn toggle" title="접기/펼치기" aria-label="메모장 접기 또는 펼치기">−</button>
+      </div>
+    </div>
+    <div id="stickyNoteBody" class="sticky-note-body">
+      <textarea id="stickyNoteText" placeholder="내전 진행 메모를 적어두세요.&#10;&#10;예)&#10;- 2세트 맵: 헤이븐&#10;- 승기팀 선공&#10;- 다음 판 팀장 교체"></textarea>
+      <div class="sticky-note-footer">자동 저장됨</div>
+    </div>
+  </aside>
+
 </body>
 </html>

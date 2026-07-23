@@ -1,4 +1,4 @@
-const STORAGE_KEY="valorant-scrim-tool-v18";
+const STORAGE_KEY="valorant-scrim-tool-v23";
 
 const defaultMaps=[
   {name:"스플릿",slug:"split"},
@@ -43,7 +43,9 @@ const initialState={
   activeGame:"roulette",
   rouletteDeg:0,
   coinDeg:0,
-  theme:"valorant"
+  theme:"valorant",
+  stickyNote:"",
+  stickyNoteCollapsed:false
 };
 
 let state=loadState();
@@ -636,11 +638,6 @@ function renderResultText(){
 
   $("versusTitle").textContent=`${teamAName} VS ${teamBName}`;
 
-  const lineInfo=state.lines.map(line=>{
-    const captainMark=line.lineNo===state.captainLineNo?" [팀장]":"";
-    return `${line.lineNo}라인${captainMark}: ${line.players[0].nickname.trim()||"-"} ${relationToSign(line.relation)} ${line.players[1].nickname.trim()||"-"}`;
-  }).join("\n");
-
   $("resultText").textContent=[
     "===== 발로란트 내전 =====","",
     `${teamAName} VS ${teamBName}`,"",
@@ -648,16 +645,21 @@ function renderResultText(){
     `선공격: ${getTeamName(state.attackTeam)}`,
     `선수비: ${getTeamName(defense)}`,
     `드래프트 모드: ${modeLabel}`,"",
-    "[밸런스 라인]",lineInfo,"",
-    `[${teamAName}]`,...(teamA.length?teamA.map((n,i)=>`${i+1}. ${n}${i===0?" (팀장)":""}`):["-"]),"",
-    `[${teamBName}]`,...(teamB.length?teamB.map((n,i)=>`${i+1}. ${n}${i===0?" (팀장)":""}`):["-"])
+    "[밸런스 라인]",
+    state.lines.map(line=>`${line.lineNo}라인: ${line.players[0].nickname.trim()||"-"} ${relationToSign(line.relation)} ${line.players[1].nickname.trim()||"-"}`).join("\n"),
+    "",
+    `[${teamAName}]`,...(teamA.length?teamA.map((n,i)=>`${i+1}. ${n}`):["-"]),"",
+    `[${teamBName}]`,...(teamB.length?teamB.map((n,i)=>`${i+1}. ${n}`):["-"])
   ].join("\n");
 }
 
 async function copyResult(){
+  const result=$("resultText").textContent.trim();
+  const discordText=`\`\`\`\n${result}\n\`\`\``;
+
   try{
-    await navigator.clipboard.writeText($("resultText").textContent);
-    alert("결과를 복사했습니다.");
+    await navigator.clipboard.writeText(discordText);
+    alert("디스코드 코드 박스 형식으로 복사했습니다.");
   }catch{
     alert("복사에 실패했습니다. 직접 선택해서 복사해주세요.");
   }
@@ -679,7 +681,43 @@ function escapeHtml(str){
     .replaceAll("'","&#039;");
 }
 
+function renderStickyNote(){
+  const note=$("stickyNote");
+  const body=$("stickyNoteBody");
+  const toggleBtn=$("toggleNoteBtn");
+  const textarea=$("stickyNoteText");
+
+  if(!note||!body||!toggleBtn||!textarea)return;
+
+  if(document.activeElement!==textarea){
+    textarea.value=state.stickyNote||"";
+  }
+
+  note.classList.toggle("collapsed",!!state.stickyNoteCollapsed);
+  body.classList.toggle("hidden",!!state.stickyNoteCollapsed);
+  toggleBtn.textContent=state.stickyNoteCollapsed?"+":"−";
+}
+
+function saveStickyNote(value){
+  state.stickyNote=value;
+  persist();
+}
+
+function toggleStickyNote(){
+  state.stickyNoteCollapsed=!state.stickyNoteCollapsed;
+  persist();
+  renderStickyNote();
+}
+
+function clearStickyNote(){
+  if(!confirm("메모 내용을 모두 지울까요?"))return;
+  state.stickyNote="";
+  persist();
+  renderStickyNote();
+}
+
 function renderAll(){
+  renderStickyNote();
   renderTheme();
   renderPlayers();
   renderLines();
@@ -709,6 +747,14 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
 
 $("spinRouletteBtn").addEventListener("click",spinRoulette);
 $("flipCoinBtn").addEventListener("click",flipCoin);
+
+const stickyNoteText=$("stickyNoteText");
+const toggleNoteBtn=$("toggleNoteBtn");
+const clearNoteBtn=$("clearNoteBtn");
+
+stickyNoteText?.addEventListener("input",e=>saveStickyNote(e.target.value));
+toggleNoteBtn?.addEventListener("click",toggleStickyNote);
+clearNoteBtn?.addEventListener("click",clearStickyNote);
 
 if(!state.selectedMap){
   state.selectedMap=state.maps.find(m=>m.enabled)?.name||"";
